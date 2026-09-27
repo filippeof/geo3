@@ -23,7 +23,7 @@ https://filippeof.github.io/geo3/
  - Layer visibility
    - Click on layers button ![Profile Activation](src/img/layers.png), click once to make layer transparent, twice to hide layer
  - Elevation Profile: 
-   - Toggle Elevation profile ![Profile Activation](src/img/profile_activate.png), click to define points of profile. Double click to end.
+   - Toggle Elevation profile ![Profile Activation](src/img/profile_activate.png), click to define points of profile. Double click to end (or ✔️).
    - Hover over map profile to show position on elevation profile
    - If drill core available: Hover over units for more information
  - Custom data: 

@@ -5,17 +5,10 @@ html, body { height: 100%; display: flex; flex-direction: column;}
 /* Elevation Profile */
 /* #ele_profile_container {max-height: 25vh} */
 .ele_profile_txt { font-size: 14px; fill: black; font-weight: bold; }
-rect{
-    stroke-width:1px;
-    stroke:rgb(60,60,60);
-    stroke-opacity: 0.6;
-    fill-opacity: 0.9;
-}
-polygon{
-    stroke-linejoin: round; /* Rounds off sharp angle joints */
-    stroke-linecap: round;
-}
 
+#ele_profile_bt_container input{
+  margin: 5px 30px;
+}
 /* Popup table */
 table .info-tbl{
   width: 100%;      

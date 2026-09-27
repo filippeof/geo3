@@ -573,3 +573,31 @@ function download_profile(out_filename='ele_profile.svg'){
     document.body.removeChild(downloadLink);
     URL.revokeObjectURL(blobUrl);
 }
+
+function delete_profile(map){
+    // Delete elevation profile 
+    clickedCoords = []; // Start new profile
+    profile_cumul_distance = 0;
+    geojson_profile.features[0].geometry.coordinates = []  // Update line
+    geojson_profile.features[1].geometry.coordinates = []; // Update start point
+    geojson_profile.features[2].geometry.coordinates = []; // Update end point
+    map.getSource('profile_lyr_src').setData(geojson_profile);
+    document.getElementById("dc-profile-groups").innerHTML=""
+}
+
+function show_profile(map){
+    // Show elevation profile 
+    // Show dialog
+    let progress_dialog = document.createElement("dialog");
+    progress_dialog.innerHTML = "<p>Calculating Profile...</p>"
+    document.body.appendChild(progress_dialog);
+    progress_dialog.showModal();
+    setTimeout(() => {
+        // Make elevation profile
+        show_elevation_profile(map)
+        // Close dialog
+        progress_dialog.close();           
+        document.body.removeChild(progress_dialog); 
+    }, 50)
+    reset_profile = true;    
+}

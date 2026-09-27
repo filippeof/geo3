@@ -40,6 +40,18 @@ Dependencies:
 
     <div id="ele_profile_container" style="display: none;">
         <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 1000 300" id= "ele_profile_svg">
+            <style>
+                rect{
+                stroke-width:1px;
+                stroke:rgb(60,60,60);
+                stroke-opacity: 0.6;
+                fill-opacity: 0.9;
+                }
+                polygon{
+                    stroke-linejoin: round; /* Rounds off sharp angle joints */
+                    stroke-linecap: round;
+                }
+            </style>
             <defs>
                 <!-- Clip polygon: points set dinamically for each profile-->
                 <clipPath id="profile_clip">
@@ -64,7 +76,12 @@ Dependencies:
 
         </svg>
         <!-- Download SVG -->
-        <input id="ele_profile_download" type="button" title="Download Profile" value="💾" onclick="download_profile()"></input>
+         <div id="ele_profile_bt_container">
+            <input id="ele_profile_show" type="button" title="Show Profile" value="✔️"></input>
+            <input id="ele_profile_delete" type="button" title="Delete Profile" value="🗑️"></input>
+            <input id="ele_profile_download" type="button" title="Download Profile" value="💾"></input>
+
+        </div>
     </div>
     <script type="module">
         // import * as maplibregl from './src/js/maplibre_6-5/dist/maplibre-gl.mjs';
@@ -260,19 +277,7 @@ Dependencies:
             if (document.profile_tool_active == true){
                 e.preventDefault()
                 //Calculate profile
-                // Show dialog
-                let progress_dialog = document.createElement("dialog");
-                progress_dialog.innerHTML = "<p>Calculating Profile...</p>"
-                document.body.appendChild(progress_dialog);
-                progress_dialog.showModal();
-                setTimeout(() => {
-                    // Make elevation profile
-                    show_elevation_profile(map)
-                    // Close dialog
-                    progress_dialog.close();           
-                    document.body.removeChild(progress_dialog); 
-                }, 50)
-                reset_profile = true;      
+                show_profile(map)  
             }
         });
 
@@ -305,8 +310,12 @@ Dependencies:
             drop_file_handler(e,map);
         });
 
-    
-        // load_gpx(map)
-    </script>
+        
+        // Show, Download, delete elevation profile
+        document.getElementById("ele_profile_download").addEventListener("click",() =>  {download_profile()});
+        document.getElementById("ele_profile_show").addEventListener("click", () =>  {show_profile(map)});
+        document.getElementById("ele_profile_delete").addEventListener("click", () =>  {delete_profile(map)});
+
+        </script>
   </body>
 </html>
