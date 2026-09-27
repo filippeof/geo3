@@ -1,5 +1,4 @@
 const v_ex = 2 // Vertical exageration
-var clickedCoords = []; //PLaceholder coordinates of profile
 
 // Elevation Profile
 // const v_ex = 2.5 // Vertical exageration #TODO scale svgw,h # defined in map_defs.js
@@ -13,8 +12,11 @@ const tick_length = 2;          // tick stroke length
 const min_profile_depth = 100;  // Minimum extra depth under minimum elevation (m)
 const n_elevation_pts = 200;    // Number of coordinates to sample elevation along profile line
 
-const profile_w_px = 20;    //Profile line stroke width in px
-var profile_distance = 0; //PLaceholder profile distance from start to end pt (km)
+const profile_w_px = 20;            // Profile line stroke width in px
+const min_segment_distance = 0.01;  // Minimum distance to consider a segment of profile
+var clickedCoords = [];             //PLaceholder coordinates of profile
+var profile_cumul_distance = 0;     // PLaceholder profile distance from start to end pt (km)
+var reset_profile = false;          // If true, clear profile, reset profile_cumul_distance, clickedCoords,profile_coord_list
 const profile_tool_active = false;
 document.profile_tool_active = profile_tool_active; // Profile is active
 
@@ -82,18 +84,34 @@ function get_scale(z,lat){
     return res
 }  
 
-function make_coord_list(start_pt, end_pt, n_points){
-    const start_lon = start_pt[0];
-    const start_lat = start_pt[1];
-    const end_lon = end_pt[0];
-    const end_lat = end_pt[1];
-    const lat_ls = linspace(start_lat, end_lat, n_points);
-    const lon_ls = linspace(start_lon, end_lon, n_points);
-    coord_list = []
-    for (let ii = 0; ii < n_points; ii++) {
-        coord_list.push([lon_ls[ii],lat_ls[ii]])
+function make_coord_list(in_coord_list, n_points){
+    // Make linspaced coordinate list
+    let out_coord_list = []
+    // Simple case: start and end point: linspace between start and end coords
+    if(in_coord_list.length == 2) {
+        const start_lon = in_coord_list[0][0];
+        const start_lat = in_coord_list[0][1];
+        const end_lon = in_coord_list[1][0];
+        const end_lat = in_coord_list[1][1];
+        const lat_ls = linspace(start_lat, end_lat, n_points);
+        const lon_ls = linspace(start_lon, end_lon, n_points);
+        for (let ii = 0; ii < n_points; ii++) {
+            out_coord_list.push([lon_ls[ii],lat_ls[ii]])
+        }
     }
-    return coord_list
+    // Otherwise sample along line using turf
+    else
+    {
+        var line = turf.lineString(in_coord_list);
+        const distance_step = profile_cumul_distance/n_points;
+        for (let distance = 0; distance <= profile_cumul_distance; distance += distance_step) {
+            const pt = turf.along(line, distance, { units: "kilometers" });
+            out_coord_list.push(pt.geometry.coordinates);
+        }
+  
+    }
+
+    return out_coord_list
 }
 
 async function get_elevation_list(map,coord_list) {
@@ -121,14 +139,17 @@ async function get_elevation_list(map,coord_list) {
     // return results.filter(item => item !== null);
 }
 function show_cursor_profile(lng,lat){
-        const start_pt = turf.point(clickedCoords[0]);
-        const end_pt = turf.point(clickedCoords[1]);
+        // const n_pts = clickedCoords.length
+        // const start_pt = turf.point(clickedCoords[0]);
+        // const end_pt = turf.point(clickedCoords[clickedCoords.length-1]);
+        if (clickedCoords.length<2) return;
         const cur_pt = turf.point([lng,lat]);
-        const hover_distance = turf.distance(start_pt, cur_pt, {units: "kilometers"});
-        // profile_distance = calc_distance(start_pt,end_pt); calculated at second click
+        var nearest_pt = turf.nearestPointOnLine(turf.lineString(clickedCoords), cur_pt, {units: "kilometers"});
+        const hover_distance = nearest_pt.properties.lineDistance; //Distance from start of linestring (or segment+ segmentDistance?) 
         // make sure is within profile 
-        const dist_ratio = Math.min(Math.max(hover_distance/profile_distance,0),1) 
+        const dist_ratio = Math.min(Math.max(hover_distance/profile_cumul_distance,0),1) 
         const line_x = svg_horz_margin + svg_poly_w*dist_ratio;
+        if (!line_x ) return;
         let svg_line = document.getElementById("cursor_ele_line");
         svg_line.setAttribute("x1", line_x);
         svg_line.setAttribute("x2", line_x);
@@ -145,19 +166,15 @@ async function show_elevation_profile(map){
     // 
     
     // sample coordinates along line (linspaced)
-    const start_pt = clickedCoords[0];
-    const end_pt = clickedCoords[1];
-    const coord_list = make_coord_list(start_pt,end_pt,n_elevation_pts);
-    // console.log("Coordinate list ", coord_list);
-    
+    if (clickedCoords.length <2) return;
+    const coord_list = make_coord_list(clickedCoords, n_elevation_pts); //[[lon,lat]]
     // Get elevation for coordinate points
-    const ele_list = await get_elevation_list(map,coord_list);   
-    // const coord_ele_list = await get_elevation_list(coord_list); //rest
-    // const ele_list = coord_ele_list.map(ele => ele[2]); // Extract the elevation values [lon,lat,ele]
+    const ele_list = await get_elevation_list(map,coord_list); 
     const max_ele = Math.max(...ele_list);
     let min_ele = Math.min(...ele_list);
     // Add buffer below min elevation (at least the same distance as elevation diference or min_profile_depth, whatever larger)
-    const profile_extra_depth = Math.max(...[(max_ele - min_ele), min_profile_depth]);
+    // TODO: user chooses? relative to min_ele | max_ele | min dc depth | max dc depth
+    const profile_extra_depth = Math.max(...[(max_ele - min_ele), min_profile_depth]); 
     min_ele = min_ele - profile_extra_depth;
     const dh = max_ele - min_ele;
     // TODO calculate svg_poly_h based on given v.ex.?
@@ -175,7 +192,6 @@ async function show_elevation_profile(map){
     }
     poly_str += `${svg_poly_w+svg_horz_margin},${svg_poly_h+svg_vert_margin} `;
 
-    // console.log("Elevation list for profile:", ele_list);
     // Make elevation profile, set clip mask
     const ele_profile =  document.getElementById("ele_profile_svg")
     const polygon = ele_profile.getElementById("elevation_profile_poly");
@@ -190,12 +206,12 @@ async function show_elevation_profile(map){
         profile_txt_group.removeChild(element)
     });
     // Ticks, Ticks Labels
-    const dist_txt_list = linspace(0, profile_distance, n_x_ticks);
+    const dist_txt_list = linspace(0, profile_cumul_distance, n_x_ticks);
     const ele_txt_list = linspace(min_ele, max_ele, n_y_ticks);
     //X ticks (Distance)
     for (let ii = 0; ii < dist_txt_list.length; ii++) {
         const dist = dist_txt_list[ii].toFixed(1);
-        const x_tick_pos = svg_horz_margin+svg_poly_w*(dist/profile_distance);
+        const x_tick_pos = svg_horz_margin+svg_poly_w*(dist/profile_cumul_distance);
         // const x_tick =document.createElement('text');
         profile_txt_group.innerHTML +=`<text class="ele_profile_ticks" text-anchor="middle" x="${x_tick_pos}" y="${svg_vert_margin+svg_poly_h+20}">${dist}</text>`;
         profile_txt_group.innerHTML +=`<line class="ele_profile_ticks" x1="${x_tick_pos}" y1="${svg_vert_margin+svg_poly_h+2}" x2="${x_tick_pos}" y2="${svg_vert_margin+svg_poly_h+2+tick_length}" stroke="black" />`;
@@ -211,7 +227,9 @@ async function show_elevation_profile(map){
     
     // DRILL CORE
     // Get drill core points within buffer profile
-    // Buffer profile based on zoom: how many km is profile width in px
+    // Buffer profile based on zoom: -> how many km is profile width in px
+    const start_pt = clickedCoords[0];
+    const end_pt = clickedCoords[clickedCoords.length-1];
     let buffer_profile = (profile_w_px/2)*get_scale(map.getZoom(), (start_pt[1]+end_pt[1])/2); //km
     // buffer_profile = 0.5
     const line_buffer = turf.buffer(geojson_profile, buffer_profile, { units: 'kilometers' });
@@ -230,10 +248,10 @@ async function show_elevation_profile(map){
 
         let top_h = obj_data["dc_h"]; // current upper limit (will be set to previous units' lower limit)
         const obj_dist = turf.distance(start_pt, obj_coords, {units: "kilometers"});
-        const dist_ratio = Math.min(Math.max(obj_dist/profile_distance,0),1)
+        const dist_ratio = Math.min(Math.max(obj_dist/profile_cumul_distance,0),1)
         let min_x = svg_horz_margin + svg_poly_w*dist_ratio - dc_w/2;
         if (obj_data!=undefined){
-            // Crete group containing all units of drill core as rect objects
+            // Create group containing all units of drill core as rect objects
             dc_group_txt += `<g id="${obj_id}"> <title>${obj_id}</title>` 
             const obj_units = obj_data["units"]
             for (let jj = obj_units.length-1; jj >=0; jj--) {

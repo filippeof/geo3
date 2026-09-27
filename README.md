@@ -1,4 +1,4 @@
-GEO3: 3D Geological map and Drill core profiles
+GEO3: 3D Geology viewer
 
 https://filippeof.github.io/geo3/
 
@@ -11,8 +11,23 @@ https://filippeof.github.io/geo3/
   - Create elevation profile (Whole World)
   - Geological maps and Feature Info (Austria, Brazil, Switzerland, Czechia, Germany, France and  Italy) 
   - Drill core profiles (DE/BY)
-  - Add custom vector layer: Drag and drop gpx, kml or geojson file
-  - 3D Basemap, Hillsahde, Satellite layers
+  - Add custom layer: Drag and drop gpx, kml or geojson file
+  - 3D Basemap, Terrain, Satellite layers
+
+- Quick start:
+ - Navigation:
+  - Pan: PC: Arrow keys, Mobile: Drag
+  - Zoom: PC: + - keys, Mobile: Pinch in/out
+  - Pitch: PC: Shift + Arrow up/down, Mobile: Click and drag compass button up/down
+  - Rotate: PC: Shift + Arrow left/right, Mobile: Click and drag compass button left/right
+ - Layer visibility
+  - Click on layers button ![Profile Activation](src/img/layers.png), click once to make layer transparent, twice to hide layer
+ - Elevation Profile: 
+    - Toggle Elevation profile ![Profile Activation](src/img/profile_activate.png), click to define points of profile. Double click to end.
+    - Hover over map profile to show position on elevation profile
+    - If drill core available: Hover over units for more information
+ - Custom data: Drag and drop gpx, kml or geojson file to window to see track/route 
+ - Geology info: With elevation profile deactivated, click on map for info. 
 
 - Data sources:
   -  Drill core data

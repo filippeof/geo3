@@ -20,7 +20,7 @@ Dependencies:
 
     <!-- Turf -->
     <!-- <script src="src/js/turf.min.js" charset="utf-8"></script> -->
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.0/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.4/turf.min.js"></script>
 
      <!-- style -->
     <link rel='stylesheet' href='src/css/style.css'>
@@ -58,7 +58,7 @@ Dependencies:
             <!-- Drill cores -->
             <!-- All items in clip-group are clipped to Boundary polygon -->
             <g id= "clip-group" clip-path="url(#profile_clip)">
-                <line id="cursor_ele_line" x1="20" y1="255" x2="20" y2="20" stroke="black" stroke-width="1"/>
+                <line id="cursor_ele_line" x1="20" y1="255" x2="20" y2="20" stroke="#d03030" stroke-width="3"/>
                 <g id="dc-profile-groups"></g> <!-- dynamically fill with dcs -->
             </g>
 
@@ -110,12 +110,12 @@ Dependencies:
         });
 
         // Map interaction
-        // Hover on  profile line: show cursor position on svg profile
         map.on('load', async () => {
+            // Hover on  profile line: show cursor position on svg profile
             map.on('mousemove', 'profile-layer', (e) => {
                 // map.getCanvas().style.cursor = 'crosshair';
                 // console.log("Mousemove event on profile-layer:", e.lngLat);
-                if (clickedCoords.length == 2) {
+                if (clickedCoords.length >1) {
                     show_cursor_profile(e.lngLat.lng,e.lngLat.lat)
                 }
             });
@@ -124,8 +124,8 @@ Dependencies:
             map.on('mouseleave', 'profile-layer', () => {
                 // map.getCanvas().style.cursor = '';
                 let svg_line = document.getElementById("cursor_ele_line");
-                svg_line.setAttribute("x1", svg_horz_margin);
-                svg_line.setAttribute("x2", svg_horz_margin);
+                svg_line.setAttribute("x1", -1);
+                svg_line.setAttribute("x2", -1);
             });
         });
 
@@ -167,57 +167,50 @@ Dependencies:
         // Profile        
         map.on('click', async (e) => {
             if (e._click_handled) {
-                    return; // click handled already for layer
+                    return; // click handled already for layer click
              }
             //  Drawing profile
             if (document.profile_tool_active == true){
                 // Extract [lng, lat] from the click event
                 const lngLat = [e.lngLat.lng, e.lngLat.lat];
-                if (clickedCoords.length == 2) {
-                    clickedCoords = []; // Reset if already have two points
+                if (reset_profile) {
+                    clickedCoords = []; // Start new profile
+                    profile_cumul_distance = 0;
+                    geojson_profile.features[0].geometry.coordinates = []  // Update line
+                    geojson_profile.features[1].geometry.coordinates = []; // Update start point
+                    geojson_profile.features[2].geometry.coordinates = []; // Update end point
+                    map.getSource('profile_lyr_src').setData(geojson_profile);
+                    reset_profile = false;
                 }
-                // Filter inside bbox
-                // if (turf.booleanWithin(turf.point(lngLat), bbox_by_poly)) {                      
-                //     clickedCoords.push(lngLat);
-                //     }
-                // else{
-                //     alert("Point outside BBOX")
-                //     return
-                // }
-                clickedCoords.push(lngLat);
 
                 // console.log(`Click ${clickedCoords.length}:`, lngLat);
-                if (clickedCoords.length == 1) {
+                if (clickedCoords.length == 0) {
+                    geojson_profile.features[0].geometry.coordinates = [lngLat];   // Update line
                     geojson_profile.features[1].geometry.coordinates = lngLat; // Update start point
                     map.getSource('profile_lyr_src').setData(geojson_profile);
+                    clickedCoords.push(lngLat);
                 }
-                // Two points clicked: update the profile line, create elevation profile
-                else if (clickedCoords.length == 2) {
-                    // Show dialog
-                    let progress_dialog = document.createElement("dialog");
-                    progress_dialog.innerHTML = "<p>Calculating Profile...</p>"
-                    document.body.appendChild(progress_dialog);
-                    progress_dialog.showModal();
-                    setTimeout(() => {
-                        // Make elevation profile
-                        geojson_profile.features[2].geometry.coordinates = lngLat; // Update end point
-                        geojson_profile.features[0].geometry.coordinates = clickedCoords; // Update line
-                        map.getSource('profile_lyr_src').setData(geojson_profile);
-                        profile_distance = turf.distance(clickedCoords[0],clickedCoords[1],{units:"kilometers"});
-                        show_elevation_profile(map)
-                     
-                        // Close dialog
-                        progress_dialog.close();           
-                        document.body.removeChild(progress_dialog); 
-                    }, 50)      
+                // at least Two points clicked: update the profile line
+                else {
+                    const last_seg_distance = turf.distance(clickedCoords[clickedCoords.length-1],
+                                lngLat,
+                                {units:"kilometers"});
+                    // same pt? e.eg when double clicking ->ignore
+                    if (last_seg_distance<min_segment_distance) return;
+                    
+                    geojson_profile.features[0].geometry.coordinates.push(lngLat);   // Update line
+                    geojson_profile.features[2].geometry.coordinates = lngLat;       // Update end point
+                    map.getSource('profile_lyr_src').setData(geojson_profile);
+                    // Add last segment distance to cumulative distance
+                    profile_cumul_distance+=last_seg_distance;
+                    clickedCoords.push(lngLat);
+
                 }
-                else{
-                    clickedCoords = []; // Reset for the next line
-                }
+
             }
             //  Close poupup/ get Layer info
             else{
-                // If popup is open, just close it
+                // If popup is open, close it
                 if (get_info_popup && get_info_popup.isOpen()) {
                     get_info_popup.remove();
                     return;
@@ -260,6 +253,26 @@ Dependencies:
                 if (popup_html!="") {
                     get_info_popup.setLngLat(e.lngLat).setHTML(popup_html).addTo(map);
                 }
+            }
+        });
+
+        map.on("dblclick", async (e) => {
+            if (document.profile_tool_active == true){
+                e.preventDefault()
+                //Calculate profile
+                // Show dialog
+                let progress_dialog = document.createElement("dialog");
+                progress_dialog.innerHTML = "<p>Calculating Profile...</p>"
+                document.body.appendChild(progress_dialog);
+                progress_dialog.showModal();
+                setTimeout(() => {
+                    // Make elevation profile
+                    show_elevation_profile(map)
+                    // Close dialog
+                    progress_dialog.close();           
+                    document.body.removeChild(progress_dialog); 
+                }, 50)
+                reset_profile = true;      
             }
         });
 
