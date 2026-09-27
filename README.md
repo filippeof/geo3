@@ -7,14 +7,16 @@ https://filippeof.github.io/geo3/
 </a>
 
 
-- Features:
+## Features:
+
   - Create elevation profile (Whole World)
   - Geological maps and Feature Info (Austria, Brazil, Switzerland, Czechia, Germany, France and  Italy) 
   - Drill core profiles (DE/BY)
   - Add custom layer: Drag and drop gpx, kml or geojson file
   - 3D Basemap, Terrain, Satellite layers
 
-- Quick start:
+## Quick start:
+
  - Navigation:
   - Pan: PC: Arrow keys, Mobile: Drag
   - Zoom: PC: + - keys, Mobile: Pinch in/out
@@ -29,7 +31,8 @@ https://filippeof.github.io/geo3/
  - Custom data: Drag and drop gpx, kml or geojson file to window to see track/route 
  - Geology info: With elevation profile deactivated, click on map for info. 
 
-- Data sources:
+## Data sources:
+
   -  Drill core data
       - DE/BY: [DGK25: Bayerisches Landesamt für Umwelt](www.lfu.bayern.de) Lizenz: CC BY 4.0
   
