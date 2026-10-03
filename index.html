@@ -42,13 +42,13 @@ Dependencies:
         <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 1000 300" id= "ele_profile_svg">
             <style>
                 rect{
-                stroke-width:1px;
-                stroke:rgb(60,60,60);
-                stroke-opacity: 0.6;
-                fill-opacity: 0.9;
+                    stroke-width:1px;
+                    stroke:rgb(60,60,60);
+                    stroke-opacity: 0.6;
+                    fill-opacity: 0.9;
                 }
                 polygon{
-                    stroke-linejoin: round; /* Rounds off sharp angle joints */
+                    stroke-linejoin: round;
                     stroke-linecap: round;
                 }
             </style>
@@ -91,16 +91,20 @@ Dependencies:
         map_style.sources["dc_lyr_src"]["data"] = "src/js/dc_de_by.geojson";//TODO: Use relative path to geojson file instead?
         map_style.sources["profile_lyr_src"]["data"] = geojson_profile;
         
+        // Check if any parameters were given in url
+        const urlParams = new URLSearchParams(window.location.search);
+        const params = Object.fromEntries(urlParams.entries());
         // Initialize the map
         const map = new maplibregl.Map({
-            container: 'map', // ID of the HTML element
-            pitch: 45,
+            container: 'map', 
+            pitch: params.p || 45,
+            bearing: params.b || 0,
             minZoom: 4,
             maxZoom: 18,
             maxPitch: 80,
             style: map_style,
-            zoom: 9,
-            center: [11.5,48.0],
+            zoom: params.z || 9,
+            center: [Number(params.lng) || 11.5, Number(params.lat) || 48],
             terrainSkirtLength: 'none'
         });
 
@@ -114,7 +118,7 @@ Dependencies:
         map.addControl(new ProfileControl(), 'top-right');
 
         // Create popup
-        // Drill core
+        // Drill cores
         const dc_popup = new maplibregl.Popup({
             closeButton: false,
             closeOnClick: false
@@ -179,7 +183,7 @@ Dependencies:
             }
             // dc_popup.remove();
         });
-        //TODO: if hover over svg profile, highlight in geojson line profile?
+        //TODO: if hover over svg profile, highlight in geojson line profile as well?
         
         // Profile        
         map.on('click', async (e) => {
@@ -193,7 +197,7 @@ Dependencies:
                 if (reset_profile) {
                     clickedCoords = []; // Start new profile
                     profile_cumul_distance = 0;
-                    geojson_profile.features[0].geometry.coordinates = []  // Update line
+                    geojson_profile.features[0].geometry.coordinates = [];  // Update line
                     geojson_profile.features[1].geometry.coordinates = []; // Update start point
                     geojson_profile.features[2].geometry.coordinates = []; // Update end point
                     map.getSource('profile_lyr_src').setData(geojson_profile);
@@ -309,7 +313,6 @@ Dependencies:
         map_container.addEventListener("drop", (e)=> {
             drop_file_handler(e,map);
         });
-
         
         // Show, Download, delete elevation profile
         document.getElementById("ele_profile_download").addEventListener("click",() =>  {download_profile()});

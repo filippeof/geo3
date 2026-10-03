@@ -110,7 +110,6 @@ function make_coord_list(in_coord_list, n_points){
         }
   
     }
-
     return out_coord_list
 }
 
@@ -164,12 +163,11 @@ async function show_elevation_profile(map){
     // |        .
     // v Y       100,100
     // 
-    
-    // sample coordinates along line (linspaced)
     if (clickedCoords.length <2) return;
+    // sample coordinates along line (linspaced)
     const coord_list = make_coord_list(clickedCoords, n_elevation_pts); //[[lon,lat]]
     // Get elevation for coordinate points
-    const ele_list = await get_elevation_list(map,coord_list); 
+    const ele_list = await get_elevation_list(map, coord_list); 
     const max_ele = Math.max(...ele_list);
     let min_ele = Math.min(...ele_list);
     // Add buffer below min elevation (at least the same distance as elevation diference or min_profile_depth, whatever larger)
@@ -205,6 +203,7 @@ async function show_elevation_profile(map){
     profile_txt_group.querySelectorAll(".ele_profile_ticks").forEach(element => {
         profile_txt_group.removeChild(element)
     });
+    
     // Ticks, Ticks Labels
     const dist_txt_list = linspace(0, profile_cumul_distance, n_x_ticks);
     const ele_txt_list = linspace(min_ele, max_ele, n_y_ticks);
@@ -215,7 +214,6 @@ async function show_elevation_profile(map){
         // const x_tick =document.createElement('text');
         profile_txt_group.innerHTML +=`<text class="ele_profile_ticks" text-anchor="middle" x="${x_tick_pos}" y="${svg_vert_margin+svg_poly_h+20}">${dist}</text>`;
         profile_txt_group.innerHTML +=`<line class="ele_profile_ticks" x1="${x_tick_pos}" y1="${svg_vert_margin+svg_poly_h+2}" x2="${x_tick_pos}" y2="${svg_vert_margin+svg_poly_h+2+tick_length}" stroke="black" />`;
-
     }
     //Y ticks (elevation)
     for (let ii = 0; ii < ele_txt_list.length; ii++) {
@@ -232,7 +230,7 @@ async function show_elevation_profile(map){
     const end_pt = clickedCoords[clickedCoords.length-1];
     let buffer_profile = (profile_w_px/2)*get_scale(map.getZoom(), (start_pt[1]+end_pt[1])/2); //km
     // buffer_profile = 0.5
-    const line_buffer = turf.buffer(geojson_profile, buffer_profile, { units: 'kilometers' });
+    const line_buffer = turf.buffer(geojson_profile, buffer_profile, {units: 'kilometers'});
 
     // Get drill core intersect with buffered profile
     const dc_geojson = await  map.getSource('dc_lyr_src').getData(); 
@@ -275,13 +273,12 @@ async function show_elevation_profile(map){
                 }
             };
             dc_group_txt += `</g>` //finish group
-
         } 
     }
     dc_group.innerHTML =  dc_group_txt;
     // TODO: if overlapping drill cores in profile, get deepest> get first
     // TODO: export profile? make report (units, legend)
-    // TODO: make rectangle/cube profile: interpolate units(simplify by serie?), draw tool for 4 profiles (N,S,E,W)> create basic 3d Model (threejs?)
+    // TODO: make rectangle/cube profile: interpolate units(simplify by chronostratigraphy?), draw tool for 4 profiles (N,S,E,W)> create basic 3d Model (threejs?)
 }
 
 async function get_feature_info(lng,lat,lyr_def){
@@ -294,7 +291,7 @@ async function get_feature_info(lng,lat,lyr_def){
         const info_format = lyr_def["info_format"];
         const info_url = lyr_def["url"].replace("{bbox}",`${lat-0.0001},${lng-0.0001},${lat+0.0001},${lng+0.0001}`).replace("{bbox_xy}",`${lng-0.0001},${lat-0.0001},${lng+0.0001},${lat+0.0001}`); //v1.1.1: ;
         // console.log(`Requesting info from ${lyr_id}\n ${info_url}`)
-        const response = await fetch(info_url);
+        const response = await fetch(info_url, {signal: AbortSignal.timeout(2000) });
         if (!response.ok) {
             throw new Error(`Response status: ${response.status}`);
         }
@@ -309,7 +306,7 @@ async function get_feature_info(lng,lat,lyr_def){
                 const json_txt = JSON.parse(response_txt);
                 feature_props = json_txt["features"][0]["properties"]
             } catch (error) {
-                console.log("text json error",error)
+                // console.log("text json error",error)
             }
         }
         // ESRI xml
@@ -322,7 +319,7 @@ async function get_feature_info(lng,lat,lyr_def){
                     feature_props[attr.name] = attr.value;
                 }
             } catch (error) {
-                console.log("text xml error",error)
+                // console.log("text xml error",error)
             }
         }
         //GML
@@ -336,7 +333,7 @@ async function get_feature_info(lng,lat,lyr_def){
                     feature_props[field_name] =  xmlDoc.querySelector(field_name).innerHTML ?? "";
                 }
             } catch (error) {
-                console.log("text gml error",error)
+                // console.log("text gml error",error)
             }
         }
         else{
@@ -523,29 +520,31 @@ function drop_file_handler(event,map) {
         }
         // Add geojson to map
         // Add source/ layer
-        map.getSource('custom_linestring_src').setData(geojson_data);
 
-        // map.addSource('gpx_profile', {
-        //         'type': 'geojson',
-        //         'data': geojson_data
-        //     });
-        // map.addLayer({
-        //     'id': 'gpx_profile',
-        //     'type': 'line',
-        //     'source': 'gpx_profile',
-        //     'paint': {
-        //         'line-color': '#831111',
-        //         'line-opacity': 0.7,
-        //         'line-width': 3
-        //     }
-        // });
         // zoom to track/route
         if(geojson_data["features"].length>0){
-            const first_coord = geojson_data["features"][0]['geometry']['coordinates'][0];
-            map.flyTo({
-                center: [first_coord[0], first_coord[1]], // [lng, lat]
-                zoom: 12
-            });
+            // zoom to data
+            const bbox = turf.bbox(geojson_data);
+            map.fitBounds(bbox, {
+                padding: 50,
+                duration: 100   
+                });
+            if (document.profile_tool_active){
+                const coords_list = geojson_data["features"][0]['geometry']['coordinates'];
+                clickedCoords = coords_list;
+                geojson_profile.features[0].geometry.coordinates =   coords_list// Update line
+                geojson_profile.features[1].geometry.coordinates = coords_list[0]; // Update start point
+                geojson_profile.features[2].geometry.coordinates = coords_list[coords_list.length-1]; // Update end point
+                map.getSource('profile_lyr_src').setData(geojson_data);
+                profile_cumul_distance =  turf.length(geojson_data, { units: "kilometers" });
+                map.once('idle', () => {
+                    show_profile(map)
+                });
+            }
+            else{
+                map.getSource('custom_linestring_src').setData(geojson_data);
+            }
+           
         }
         else{
             alert("No features found in the file.");

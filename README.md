@@ -27,9 +27,12 @@ https://filippeof.github.io/geo3/
    - Hover over map profile to show position on elevation profile
    - If drill core available: Hover over units for more information
  - Custom data: 
-   - Drag and drop gpx, kml or geojson file to window to see track/route 
+   - Drag and drop gpx, kml or geojson file to window to see track/route. If elevetion profile is active, profile is created for the track/route.
  - Geology info
   - With elevation profile deactivated, click on map for info (e.g. Geological Unit, Lithology, Chronostratigraphy). 
+ - Set location parameters in url (lat:latitude[-90,90], lng:Longitude[-180,180],z=zoom[4,18], b: bearing[0,360], p: pitch[0,80]). Example:
+    - https://filippeof.github.io/geo3?lat=45.8&lng=6.9&z=10.5&b=90&p=75
+     
 
 ## Data sources:
 
